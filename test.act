@@ -1,0 +1,25 @@
+actor A (1) {
+	knownactors {
+	}
+	actorvars {
+		int i;
+		boolean b;
+		int j;
+		int z;
+	}
+	msghandler initial(){
+	    self.i = 2 ;
+	    self.b = true;
+	}
+	msghandler foo(int x){
+	    for( z = 0; z!=3 ;z=z+1)print("hello");
+	}
+
+}
+
+
+
+main{
+	A a():();
+
+}
