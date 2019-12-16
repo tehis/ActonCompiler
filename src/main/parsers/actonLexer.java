@@ -1,4 +1,4 @@
-// Generated from /media/alireza/New Volume/ut/term5/compiler/fall 98/CA3/src/antlr/acton.g4 by ANTLR 4.7.2
+// Generated from /home/ali/Documents/pro/Compiler/3/CA3/src/antlr/acton.g4 by ANTLR 4.7.2
 package main.parsers;
 
     import main.ast.node.*;

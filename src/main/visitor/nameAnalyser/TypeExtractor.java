@@ -1,5 +1,6 @@
 package main.visitor.nameAnalyser;
 
+import javafx.util.Pair;
 import main.ast.node.Main;
 import main.ast.node.Program;
 import main.ast.node.declaration.ActorDeclaration;
@@ -21,43 +22,43 @@ import main.symbolTable.*;
 import main.symbolTable.itemException.ItemNotFoundException;
 import main.symbolTable.symbolTableVariableItem.SymbolTableLocalVariableItem;
 import main.symbolTable.symbolTableVariableItem.SymbolTableVariableItem;
-import main.visitor.Visitor;
 import main.visitor.VisitorImpl;
-
-import java.awt.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 
 public class TypeExtractor extends VisitorImpl {
-    SymbolTableActorItem curr_act;
-    SymbolTableHandlerItem curr_handler;
+    TypeScope currentScop;
 
-  public Type get_type_of_identifier(String name){
+    SymbolTable currentActorSt;
+    SymbolTable currentHandlerSt;
+
+    boolean isStatement = false;
+
+    public SymbolTableItem checkExistenceOfKey(SymbolTable st, String key){
+        try {
+            return  st.get(key);
+        } catch (ItemNotFoundException e) {
+                return null;
+        }
+    }
+
+  public Pair<Type, String> getTypeOfIdentifier(Identifier name) {
       Type ret;
-      try {
-          System.out.println(curr_handler.getName());
-          SymbolTable hst = curr_handler.getHandlerSymbolTable();
-          SymbolTableItem test2 = (hst.get(SymbolTableLocalVariableItem.STARTKEY + name));
-          if ( test2 instanceof  SymbolTableVariableItem){
-              System.out.println("chetori ali?");
-          }
-          SymbolTableVariableItem test = (SymbolTableVariableItem)(hst.get(SymbolTableLocalVariableItem.STARTKEY + name));
-          ret = test.getType();
-      } catch (ItemNotFoundException ignored) {
-          try {
-              ret = ((SymbolTableLocalVariableItem)curr_act.getActorSymbolTable().get(SymbolTableLocalVariableItem.STARTKEY + name)).getType();
-          } catch (ItemNotFoundException ignored2) {
-              String error = "variable " + name + " is not declared";
-              System.out.println(error);
-              return new NoType();
-          }
+      SymbolTableItem var1 =
+              checkExistenceOfKey(currentHandlerSt, SymbolTableLocalVariableItem.STARTKEY + name.getName());
+
+      String error = null;
+      if (var1 == null)
+          var1 = checkExistenceOfKey(currentActorSt, SymbolTableLocalVariableItem.STARTKEY + name.getName());
+      if (var1 == null)
+          error = "Line:" + name.getLine() + ":variable " + name + " is not declared";
+      else {
+          if (var1 instanceof SymbolTableVariableItem)
+              return new Pair<Type, String>(((SymbolTableVariableItem) var1).getType(), error);
+          else if (var1 instanceof SymbolTableLocalVariableItem)
+              return new Pair<Type, String>(((SymbolTableLocalVariableItem) var1).getType(), error);
       }
-      return ret;
+      return new Pair<Type, String>(new NoType(), error);
   }
-
-
 //    public Type get_type_in_msg_handler(Identifier identifier){
 //        for (MsgHandlerDeclaration msg_handler: curr_act.getMsgHandlers()){
 //
@@ -99,7 +100,6 @@ public class TypeExtractor extends VisitorImpl {
     public void visit(Program program) {
         //TODO: implement appropriate visit functionality
         for(ActorDeclaration actorDeclaration : program.getActors()){
-
             actorDeclaration.accept(this);
         }
         program.getMain().accept(this);
@@ -109,19 +109,36 @@ public class TypeExtractor extends VisitorImpl {
     public void visit(ActorDeclaration actorDeclaration) {
         //TODO: implement appropriate visit functionality
         try {
-            curr_act = (SymbolTableActorItem) SymbolTable.root.get(SymbolTableActorItem.STARTKEY + actorDeclaration.getName().getName());
+            SymbolTableActorItem actorItem = (SymbolTableActorItem) SymbolTable.root.get(SymbolTableActorItem.STARTKEY + actorDeclaration.getName().getName());
+            currentActorSt = actorItem.getActorSymbolTable();
         } catch (ItemNotFoundException ignored) {
         }
         visitExpr(actorDeclaration.getName());
-        visitExpr(actorDeclaration.getParentName());
 
+        Identifier parent = actorDeclaration.getParentName();
+        visitExpr(parent);
+        if (parent != null) {
+            String key = SymbolTableActorItem.STARTKEY + parent.getName();
+            SymbolTableActorItem a = (SymbolTableActorItem) SymbolTable.root.getSymbolTableItems().get(key);
+            if (a == null)
+                System.out.println("Line:" + parent.getLine() + ":actor " + parent.getName() + " is not declared");
+        }
         for(VarDeclaration varDeclaration: actorDeclaration.getKnownActors())
             varDeclaration.accept(this);
 
+        for(VarDeclaration actorVar : actorDeclaration.getKnownActors()) {
+            String key = SymbolTableActorItem.STARTKEY + actorVar.getType().toString();
+            SymbolTableActorItem a = (SymbolTableActorItem) SymbolTable.root.getSymbolTableItems().get(key);
+            if (a == null)
+                System.out.println("Line:" + actorVar.getLine() + ":actor " + actorVar.getType().toString() + " is not declared");
+        }
+
         for(VarDeclaration varDeclaration: actorDeclaration.getActorVars())
             varDeclaration.accept(this);
+
         if(actorDeclaration.getInitHandler() != null)
             actorDeclaration.getInitHandler().accept(this);
+
         for(MsgHandlerDeclaration msgHandlerDeclaration: actorDeclaration.getMsgHandlers())
             msgHandlerDeclaration.accept(this);
 
@@ -131,7 +148,8 @@ public class TypeExtractor extends VisitorImpl {
     public void visit(HandlerDeclaration handlerDeclaration) {
         try {
             String handlerKey = SymbolTableHandlerItem.STARTKEY + handlerDeclaration.getName().getName();
-            curr_handler = (SymbolTableHandlerItem) curr_act.getActorSymbolTable().get(handlerKey);
+            SymbolTableHandlerItem hItem = (SymbolTableHandlerItem) currentActorSt.get(handlerKey);
+            currentHandlerSt = hItem.getHandlerSymbolTable();
         } catch (ItemNotFoundException ignored) {
         }
         visitExpr(handlerDeclaration.getName());
@@ -139,10 +157,10 @@ public class TypeExtractor extends VisitorImpl {
             argDeclaration.accept(this);
         for(VarDeclaration localVariable: handlerDeclaration.getLocalVars())
             localVariable.accept(this);
-        for(Statement statement : handlerDeclaration.getBody()) {
+        isStatement = true;
+        for(Statement statement : handlerDeclaration.getBody())
             visitStatement(statement);
-        }
-
+        isStatement = false;
     }
 
     @Override
@@ -158,12 +176,15 @@ public class TypeExtractor extends VisitorImpl {
             return;
         for(ActorInstantiation mainActor : mainActors.getMainActors())
             mainActor.accept(this);
-        SymbolTableMainItem mainItem = (SymbolTableMainItem) SymbolTable.root.getSymbolTableItems().get("Main_main");
-//        SymbolTable.root.getSymbolTableItems().get("Actor_");
-        System.out.println("Ali");
-        System.out.println(mainItem.getKey().toString());
-        System.out.println("Mammad");
 
+        for(ActorInstantiation mainActor : mainActors.getMainActors()) {
+            String key = SymbolTableActorItem.STARTKEY + mainActor.getType().toString();
+
+            SymbolTableActorItem a = (SymbolTableActorItem) SymbolTable.root.getSymbolTableItems().get(key);
+
+            if (a == null)
+                System.out.println("Line:" + mainActor.getLine() + ":actor " + mainActor.getType().toString() + " is not declared");
+        }
     }
 
     @Override
@@ -179,7 +200,6 @@ public class TypeExtractor extends VisitorImpl {
             visitExpr(initArg);
 
     }
-
 
     @Override
     public void visit(UnaryExpression unaryExpression) {
@@ -242,9 +262,13 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(Identifier identifier) {
-        //TODO: implement appropriate visit functionality
         if(identifier == null)
             return;
+        if (isStatement){
+            Pair<Type, String> p = getTypeOfIdentifier(identifier);
+            if(p.getValue() != null)
+                System.out.println(p.getValue());
+        }
     }
 
     @Override
@@ -254,7 +278,8 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(Sender sender) {
-        //TODO: implement appropriate visit functionality
+        if (currentHandlerSt.getName() == "initial")
+            System.out.println("Line:" + sender.getLine() + ":no sender in initial msghandler");
     }
 
     @Override
@@ -291,26 +316,38 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(For loop) {
-        //TODO: implement appropriate visit functionality
+        TypeScope prevScop = currentScop;
+        currentScop = TypeScope.FOR;
+
         visitStatement(loop.getInitialize());
-        Type val_type = get_type_of_identifier(((Identifier) loop.getInitialize().getlValue()).getName());
-        if (!(val_type instanceof IntType) && !(val_type instanceof NoType)){
-            String error = "unsupported operand type for assignment";
-            System.out.println(error);
+
+        Identifier id = (Identifier) loop.getInitialize().getlValue();
+        String error = null;
+        Pair<Type, String> valType = getTypeOfIdentifier(id);
+
+        if ((valType.getValue() != null) && !(valType.getKey() instanceof IntType) &&
+                !(valType.getKey() instanceof NoType)){
+            error = "unsupported operand type for assignment";
+            System.out.println("Line:"+id.getLine() + ":" + error);
         }
+
         visitExpr(loop.getCondition());
         visitStatement(loop.getUpdate());
         visitStatement(loop.getBody());
+
+        currentScop = prevScop;
     }
 
     @Override
     public void visit(Break breakLoop) {
-        //TODO: implement appropriate visit functionality
+        if(currentScop != TypeScope.FOR)
+            System.out.println("Line:" + breakLoop.getLine() + ":break statement not within loop");
     }
 
     @Override
     public void visit(Continue continueLoop) {
-        //TODO: implement appropriate visit functionality
+        if(currentScop != TypeScope.FOR)
+            System.out.println("Line:" + continueLoop.getLine() + ":continue statement not within loop");
     }
 
     @Override

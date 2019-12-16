@@ -1,25 +1,52 @@
-actor A (1) {
+actor P extends Z(2){
 	knownactors {
+	    Child c;
 	}
+
 	actorvars {
-		int i;
-		boolean b;
-		int j;
-		int z;
 	}
 	msghandler initial(){
-	    self.i = 2 ;
-	    self.b = true;
+
 	}
 	msghandler foo(int x){
-	    for( z = 0; z!=3 ;z=z+1)print("hello");
 	}
 
 }
 
+actor A extends P(1){
+	knownactors {
+	}
 
+	actorvars {
+		int i;
+		boolean b;
+		int j;
+		string z;
+	}
+	msghandler initial(){
+	    sender.a(5);
+	    self.i = 2 ;
+	    self.b = true;
+	}
+	msghandler bar(int x){
+	    continue;
+	    for( z = 0; z!=3 ;z=z+1){
+	        break;
+	        a = 5;
+	        for(f = 5; h < 10; i = i+1)
+	            continue;
+	        print("hello");
+	    a.foo(5);
+	    }
+	    break;
+
+	    t5 = 8;
+
+	}
+
+}
 
 main{
 	A a():();
-
+    B b():();
 }

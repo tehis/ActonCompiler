@@ -30,7 +30,9 @@ actorDeclaration returns [ActorDeclaration actordec]
         (KNOWNACTORS
         LBRACE
             (actor = identifier name = identifier SEMICOLON
-            {$actordec.addKnownActor(new VarDeclaration($name.id, new ActorType($actor.id)));
+            {VarDeclaration v = new VarDeclaration($name.id, new ActorType($actor.id));
+            v.setLine($name.id.getLine());
+            $actordec.addKnownActor(v);
             $actordec.setLine($name.id.getLine());
             })*
         RBRACE)
@@ -151,7 +153,8 @@ msgHandlerCall returns [MsgHandlerCall handlerCall]
     :   {Expression instance;}
         (id = identifier {instance = $id.id;} |
         SELF {instance = new Self();} |
-        SENDER {instance = new Sender();}) dot = DOT
+        SENDER {instance = new Sender();
+        instance.setLine($SENDER.getLine());}) dot = DOT
         name = identifier {$handlerCall = new MsgHandlerCall(instance, $name.id); $handlerCall.setLine($dot.getLine());}
         LPAREN el = expressionList RPAREN {$handlerCall.setArgs($el.expressions);} SEMICOLON
     ;

@@ -1,4 +1,4 @@
-// Generated from /media/alireza/New Volume/ut/term5/compiler/fall 98/CA3/src/antlr/acton.g4 by ANTLR 4.7.2
+// Generated from /home/ali/Documents/pro/Compiler/3/CA3/src/antlr/acton.g4 by ANTLR 4.7.2
 package main.parsers;
 
     import main.ast.node.*;
@@ -16,9 +16,11 @@ package main.parsers;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
-    import org.antlr.v4.runtime.tree.*;
+import org.antlr.v4.runtime.misc.*;
+import org.antlr.v4.runtime.tree.*;
 import java.util.List;
-    import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.ArrayList;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
 public class actonParser extends Parser {
@@ -314,7 +316,9 @@ public class actonParser extends Parser {
 				((ActorDeclarationContext)_localctx).name = identifier();
 				setState(99);
 				match(SEMICOLON);
-				_localctx.actordec.addKnownActor(new VarDeclaration(((ActorDeclarationContext)_localctx).name.id, new ActorType(((ActorDeclarationContext)_localctx).actor.id)));
+				VarDeclaration v = new VarDeclaration(((ActorDeclarationContext)_localctx).name.id, new ActorType(((ActorDeclarationContext)_localctx).actor.id));
+				            v.setLine(((ActorDeclarationContext)_localctx).name.id.getLine());
+				            _localctx.actordec.addKnownActor(v);
 				            _localctx.actordec.setLine(((ActorDeclarationContext)_localctx).name.id.getLine());
 				            
 				}
@@ -1621,6 +1625,7 @@ public class actonParser extends Parser {
 	public static class MsgHandlerCallContext extends ParserRuleContext {
 		public MsgHandlerCall handlerCall;
 		public IdentifierContext id;
+		public Token SENDER;
 		public Token dot;
 		public IdentifierContext name;
 		public ExpressionListContext el;
@@ -1680,8 +1685,9 @@ public class actonParser extends Parser {
 			case SENDER:
 				{
 				setState(364);
-				match(SENDER);
+				((MsgHandlerCallContext)_localctx).SENDER = match(SENDER);
 				instance = new Sender();
+				        instance.setLine(((MsgHandlerCallContext)_localctx).SENDER.getLine());
 				}
 				break;
 			default:
