@@ -1,0 +1,33 @@
+actor A (1){
+	knownactors {
+	}
+
+	actorvars {
+	}
+	msghandler initial(){
+	    int a;
+        string s;
+	    boolean b;
+	    int i[5];
+	    a=5;
+	    s="Ali";
+	    b = a==5;
+	    5 = 5;
+	    print(6+6);
+	    print(s);
+	    print(b);
+	    print(i);
+
+	}
+	msghandler bar(int x){
+	    int a;
+	    if(a>100)
+	        print(5);
+	    for(a =0; a>5; a = a + 1)
+	        print("mammad");
+	}
+}
+
+main{
+	A a():();
+}

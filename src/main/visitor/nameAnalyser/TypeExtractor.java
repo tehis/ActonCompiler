@@ -9,21 +9,23 @@ import main.ast.node.declaration.VarDeclaration;
 import main.ast.node.declaration.handler.HandlerDeclaration;
 import main.ast.node.declaration.handler.MsgHandlerDeclaration;
 import main.ast.node.expression.*;
+import main.ast.node.expression.operators.BinaryOperator;
 import main.ast.node.expression.operators.UnaryOperator;
 import main.ast.node.expression.values.BooleanValue;
 import main.ast.node.expression.values.IntValue;
 import main.ast.node.expression.values.StringValue;
 import main.ast.node.statement.*;
 import main.ast.type.Type;
+import main.ast.type.arrayType.ArrayType;
 import main.ast.type.noType.NoType;
 import main.ast.type.primitiveType.BooleanType;
 import main.ast.type.primitiveType.IntType;
+import main.ast.type.primitiveType.StringType;
 import main.symbolTable.*;
 import main.symbolTable.itemException.ItemNotFoundException;
 import main.symbolTable.symbolTableVariableItem.SymbolTableLocalVariableItem;
 import main.symbolTable.symbolTableVariableItem.SymbolTableVariableItem;
 import main.visitor.VisitorImpl;
-
 
 public class TypeExtractor extends VisitorImpl {
     TypeScope currentScop;
@@ -59,42 +61,6 @@ public class TypeExtractor extends VisitorImpl {
       }
       return new Pair<Type, String>(new NoType(), error);
   }
-//    public Type get_type_in_msg_handler(Identifier identifier){
-//        for (MsgHandlerDeclaration msg_handler: curr_act.getMsgHandlers()){
-//
-//            if (var.getIdentifier().getName().equals(identifier.getName())){
-//                return var.getType();
-//            }
-//        }
-//
-//        //else in babas
-//        return new NoType();
-//    }
-//
-//
-//    public Type get_type_in_known_actor(Identifier identifier){
-//        for (VarDeclaration var: curr_act.getActorVars()){
-//            if (var.getIdentifier().getName().equals(identifier.getName())){
-//                return var.getType();
-//            }
-//        }
-//
-//        //else in babas
-//        return new NoType();
-//    }
-
-//    public void  set_type_in_actor_vars(Identifier identifier , Type type ){
-//        for (VarDeclaration var: curr_act.getActorVars()){
-//            if (var.getIdentifier().getName().equals(identifier.getName())){
-//                var.setType(type);
-//                var.getIdentifier().setType(type);
-//            }
-//        }
-//
-//        //else in babas
-//
-//    }
-
 
     @Override
     public void visit(Program program) {
@@ -141,7 +107,6 @@ public class TypeExtractor extends VisitorImpl {
 
         for(MsgHandlerDeclaration msgHandlerDeclaration: actorDeclaration.getMsgHandlers())
             msgHandlerDeclaration.accept(this);
-
     }
 
     @Override
@@ -220,7 +185,6 @@ public class TypeExtractor extends VisitorImpl {
         }
 
         else {
-            System.out.println(unaryExpression.getOperand().getType().toString());
             if (! unaryExpression.getOperand().getType().toString().equals(new IntType().toString())){
                 System.out.println("unary type erorr int");
                 unaryExpression.setType(new NoType());
@@ -232,14 +196,30 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(BinaryExpression binaryExpression) {
-        //TODO: implement appropriate visit functionality
         if(binaryExpression == null)
             return;
 
         visitExpr(binaryExpression.getLeft());
         visitExpr(binaryExpression.getRight());
 
+//        assign, eq, neq, gt, lt, add, sub, mult, div, mod, and, or
+        BinaryOperator binaryOperator=binaryExpression.getBinaryOperator();
+        Expression right = binaryExpression.getRight();
+        Expression left = binaryExpression.getLeft();
 
+        if(binaryOperator.equals(BinaryOperator.add)){
+            if(right.getType() instanceof IntType && left.getType() instanceof IntType)
+                binaryExpression.setType(new IntType());
+            else{
+                binaryExpression.setType(new NoType());
+                System.out.println("Line:"+binaryExpression.getLine()+":unsupported operand type for "+binaryOperator.toString());
+            }
+        }
+
+        if (binaryOperator.equals(BinaryOperator.eq) || binaryOperator.equals(BinaryOperator.neq) ||
+                binaryOperator.equals(BinaryOperator.gt) || binaryOperator.equals(BinaryOperator.lt) ||
+                binaryOperator.equals(BinaryOperator.and) || binaryOperator.equals(BinaryOperator.or))
+            binaryExpression.setType(new BooleanType());
     }
 
     @Override
@@ -256,7 +236,6 @@ public class TypeExtractor extends VisitorImpl {
             return;
 
         visitExpr(actorVarAccess.getVariable());
-
 //        actorVarAccess.setType(get_type_in_actor_vars(actorVarAccess.getVariable()));
     }
 
@@ -268,6 +247,8 @@ public class TypeExtractor extends VisitorImpl {
             Pair<Type, String> p = getTypeOfIdentifier(identifier);
             if(p.getValue() != null)
                 System.out.println(p.getValue());
+            else
+                identifier.setType(p.getKey());
         }
     }
 
@@ -308,8 +289,10 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(Conditional conditional) {
-        //TODO: implement appropriate visit functionality
-        visitExpr(conditional.getExpression());
+        Expression condExpression = conditional.getExpression();
+        visitExpr(condExpression);
+        if (condExpression.getType() == null || !(condExpression.getType() instanceof BooleanType))
+            System.out.println("Line:"+conditional.getLine()+":condition type must be Boolean");
         visitStatement(conditional.getThenBody());
         visitStatement(conditional.getElseBody());
     }
@@ -332,6 +315,9 @@ public class TypeExtractor extends VisitorImpl {
         }
 
         visitExpr(loop.getCondition());
+        Expression cond = loop.getCondition();
+        if(cond.getType() == null || !(cond.getType() instanceof BooleanType))
+            System.out.println("Line:"+loop.getLine()+":condition type must be Boolean");
         visitStatement(loop.getUpdate());
         visitStatement(loop.getBody());
 
@@ -369,10 +355,13 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(Print print) {
-        //TODO: implement appropriate visit functionality
         if(print == null)
             return;
         visitExpr(print.getArg());
+        Type argType = print.getArg().getType();
+        if(argType == null || !(argType instanceof BooleanType ||  argType instanceof StringType ||
+                argType instanceof IntType || argType instanceof ArrayType))
+            System.out.println("Line:"+print.getLine()+":unsupported type for ptint");
     }
 
 
@@ -381,8 +370,6 @@ public class TypeExtractor extends VisitorImpl {
         //TODO: implement appropriate visit functionality
         visitExpr(assign.getlValue());
         visitExpr(assign.getrValue());
-
-//        System.out.println(assign.getlValue().getType().toString());
-
+        
     }
 }
