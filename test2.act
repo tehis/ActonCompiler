@@ -8,10 +8,12 @@ actor A (1){
 	    int a;
         string s;
 	    boolean b;
+	    boolean b1;
 	    int i[5];
+	    int x[2];
 	    a=5;
 	    s="Ali";
-	    b = a==5;
+	    b = b + ‌x;
 	    5 = 5;
 	    print(6+6);
 	    print(s);

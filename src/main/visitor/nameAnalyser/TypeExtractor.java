@@ -206,20 +206,56 @@ public class TypeExtractor extends VisitorImpl {
         BinaryOperator binaryOperator=binaryExpression.getBinaryOperator();
         Expression right = binaryExpression.getRight();
         Expression left = binaryExpression.getLeft();
+        boolean hasError = false;
 
-        if(binaryOperator.equals(BinaryOperator.add)){
+        // Computational operators
+        if(binaryOperator.equals(BinaryOperator.add)||binaryOperator.equals(BinaryOperator.sub)||
+                binaryOperator.equals(BinaryOperator.mult)||binaryOperator.equals(BinaryOperator.div)||
+                binaryOperator.equals(BinaryOperator.mod)){
             if(right.getType() instanceof IntType && left.getType() instanceof IntType)
                 binaryExpression.setType(new IntType());
-            else{
-                binaryExpression.setType(new NoType());
-                System.out.println("Line:"+binaryExpression.getLine()+":unsupported operand type for "+binaryOperator.toString());
-            }
+            else
+                hasError = true;
         }
+        // Logical operations
+        else if(binaryOperator.equals(BinaryOperator.and)||binaryOperator.equals(BinaryOperator.or)){
+            if(right.getType() instanceof BooleanType && left.getType() instanceof BooleanType)
+                binaryExpression.setType(new BooleanType());
+            else
+                hasError = true;
+        }
+        // Comparative operations
+        else if (binaryOperator.equals(BinaryOperator.gt) || binaryOperator.equals(BinaryOperator.lt)){
+            if (left.getType() instanceof IntType && right.getType() instanceof IntType)
+                binaryExpression.setType(new BooleanType());
+            else
+                hasError = true;
+        }
+        else if (binaryOperator.equals(BinaryOperator.eq) || binaryOperator.equals(BinaryOperator.neq)) {
 
-        if (binaryOperator.equals(BinaryOperator.eq) || binaryOperator.equals(BinaryOperator.neq) ||
-                binaryOperator.equals(BinaryOperator.gt) || binaryOperator.equals(BinaryOperator.lt) ||
-                binaryOperator.equals(BinaryOperator.and) || binaryOperator.equals(BinaryOperator.or))
-            binaryExpression.setType(new BooleanType());
+            if (left.getType().toString().equals(right.getType().toString())){
+                if (left.getType() instanceof ArrayType){
+                    ArrayType leftArray = (ArrayType)left.getType();
+                    ArrayType rightArray = (ArrayType)right.getType();
+                    if (leftArray.getSize() == rightArray.getSize())
+                        binaryExpression.setType(new BooleanType());
+                    else
+                        hasError = true;
+                }
+                else
+                    binaryExpression.setType(new BooleanType());
+            }
+            else
+                hasError = true;
+        }
+        // Assignment statement
+        else if(binaryOperator.equals(BinaryOperator.assign)) {
+//            Assign
+        }
+        if(hasError){
+            binaryExpression.setType(new NoType());
+            System.out.println("Line:"+binaryExpression.getLine()+":unsupported operand type for "+binaryOperator.toString());
+        }
     }
 
     @Override
@@ -370,6 +406,6 @@ public class TypeExtractor extends VisitorImpl {
         //TODO: implement appropriate visit functionality
         visitExpr(assign.getlValue());
         visitExpr(assign.getrValue());
-        
+
     }
 }
