@@ -25,7 +25,7 @@ actor A (1){
 	    print(i);
 	   // ac.foo();
 	    self.p=2;
-	   //a = s;
+	   a = s;
 
 	}
 	msghandler bar(int x){

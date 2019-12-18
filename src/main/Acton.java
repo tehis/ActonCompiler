@@ -3,9 +3,11 @@ package main;
 import main.ast.node.Program;
 import main.compileError.CompileErrorException;
 //import main.visitor.astPrinter.ASTPrinter;
+import main.visitor.Visitor;
+import main.visitor.VisitorImpl;
 import main.visitor.nameAnalyser.NameAnalyser;
 
-import main.visitor.nameAnalyser.TypeExtractor;
+//import main.visitor.nameAnalyser.TypeExtractor;
 import org.antlr.v4.runtime.*;
 
 //import org.antlr.v4.runtime.*;
@@ -28,7 +30,7 @@ public class Acton {
             nameAnalyser.visit(program);
             if( nameAnalyser.numOfErrors() > 0 )
                 throw new CompileErrorException();
-            TypeExtractor typeExtractor = new TypeExtractor();
+            VisitorImpl typeExtractor = new VisitorImpl();
             typeExtractor.visit(program);
         }
         catch(CompileErrorException compileError){
