@@ -163,7 +163,6 @@ public class TypeExtractor extends VisitorImpl {
             visitExpr(knownActor);
         for(Expression initArg : actorInstantiation.getInitArgs())
             visitExpr(initArg);
-
     }
 
     @Override
@@ -248,10 +247,6 @@ public class TypeExtractor extends VisitorImpl {
             else
                 hasError = true;
         }
-        // Assignment statement
-        else if(binaryOperator.equals(BinaryOperator.assign)) {
-//            Assign
-        }
         if(hasError){
             binaryExpression.setType(new NoType());
             System.out.println("Line:"+binaryExpression.getLine()+":unsupported operand type for "+binaryOperator.toString());
@@ -260,19 +255,22 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(ArrayCall arrayCall) {
-        //TODO: implement appropriate visit functionality
         visitExpr(arrayCall.getArrayInstance());
         visitExpr(arrayCall.getIndex());
+        arrayCall.setType(new IntType());
     }
 
+    /// This method class just in self.* statements(no a.foo() for example)
     @Override
     public void visit(ActorVarAccess actorVarAccess) {
-        //TODO: implement appropriate visit functionality
         if(actorVarAccess == null)
             return;
-
         visitExpr(actorVarAccess.getVariable());
-//        actorVarAccess.setType(get_type_in_actor_vars(actorVarAccess.getVariable()));
+        Pair<Type, String> type = getTypeOfIdentifier(actorVarAccess.getVariable());
+        if (type.getValue() != null)
+            System.out.println(type.getValue());
+        else
+            actorVarAccess.setType(type.getKey());
     }
 
     @Override
@@ -403,9 +401,26 @@ public class TypeExtractor extends VisitorImpl {
 
     @Override
     public void visit(Assign assign) {
-        //TODO: implement appropriate visit functionality
         visitExpr(assign.getlValue());
         visitExpr(assign.getrValue());
 
+        Expression left = assign.getlValue();
+        Expression right = assign.getrValue();
+
+        if (!(left instanceof Identifier) && !(left instanceof ArrayCall) && !(left instanceof ActorVarAccess))
+            System.out.println("Line:"+left.getLine()+":left side of assignment must be lvalue");
+
+        else if(!(left.getType() instanceof NoType) && !(right.getType() instanceof NoType)){
+            // Check equality of left and right type
+            if(!(left.getType().toString().equals(right.getType().toString())))
+                System.out.println("Line:"+left.getLine()+":unsupported operand type for "+assign.toString());
+            // Check equality of array size if left and right are both array
+            else if(left.getType() instanceof ArrayType) {
+                ArrayType arr1 = (ArrayType) left.getType();
+                ArrayType arr2 = (ArrayType) right.getType();
+                if (arr1.getSize() != arr2.getSize())
+                    System.out.println("Line:" + assign.getLine() + ":unsupported operand type for " + assign.toString());
+                }
+        }
     }
 }
