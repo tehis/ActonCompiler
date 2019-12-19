@@ -6,14 +6,17 @@ actor A (1){
 	actorvars {
 	int p;
 	}
-	msghandler initial(){
+	msghandler initial(int y){
 	    int a;
         string s;
 	    boolean b;
 	    boolean b1;
 	    int i[5];
 	    int x[2];
-        x[0]=2;
+
+        if(b1 && x‌){
+            print("Ali");
+        }
 	    //5=5;
 	    //a=5;
 	   // s="Ali";

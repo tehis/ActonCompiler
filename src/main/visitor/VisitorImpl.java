@@ -221,8 +221,9 @@ public class VisitorImpl implements Visitor {
         visitExpr(unaryExpression.getOperand());
 
         if (unaryExpression.getUnaryOperator().equals(UnaryOperator.not)){
-            if (! unaryExpression.getOperand().getType().equals(BooleanType.class)){
-                System.out.println("unary type erorr bool");
+            if (! unaryExpression.getOperand().getType().toString().equals(new BooleanType().toString())){
+                System.out.println("Line:"+unaryExpression.getLine()+":unsupported operand type for "+
+                        unaryExpression.getUnaryOperator());
                 unaryExpression.setType(new NoType());
             }
             unaryExpression.setType(new BooleanType());
@@ -230,18 +231,20 @@ public class VisitorImpl implements Visitor {
 
         else {
             if (! unaryExpression.getOperand().getType().toString().equals(new IntType().toString())){
-                System.out.println("unary type erorr int");
+                System.out.println("Line:"+unaryExpression.getLine()+":unsupported operand type for "+
+                        unaryExpression.getUnaryOperator());
                 unaryExpression.setType(new NoType());
             }
             unaryExpression.setType(new IntType());
         }
-        System.out.println(unaryExpression.getType().toString());
     }
 
     @Override
     public void visit(BinaryExpression binaryExpression) {
-        if(binaryExpression == null)
-            return;
+            if(binaryExpression == null)
+                return;
+            System.out.println("a="+((Identifier)binaryExpression.getRight()).getName());
+            System.out.println("b="+((Identifier)binaryExpression.getLeft()).getName());
 
         visitExpr(binaryExpression.getLeft());
         visitExpr(binaryExpression.getRight());
@@ -250,8 +253,8 @@ public class VisitorImpl implements Visitor {
         BinaryOperator binaryOperator=binaryExpression.getBinaryOperator();
         Expression right = binaryExpression.getRight();
         Expression left = binaryExpression.getLeft();
-        boolean hasError = false;
 
+        boolean hasError = false;
         // Computational operators
         if(binaryOperator.equals(BinaryOperator.add)||binaryOperator.equals(BinaryOperator.sub)||
                 binaryOperator.equals(BinaryOperator.mult)||binaryOperator.equals(BinaryOperator.div)||
@@ -263,8 +266,11 @@ public class VisitorImpl implements Visitor {
         }
         // Logical operations
         else if(binaryOperator.equals(BinaryOperator.and)||binaryOperator.equals(BinaryOperator.or)){
-            if(right.getType() instanceof BooleanType && left.getType() instanceof BooleanType)
+            System.out.println("p1 : " + binaryExpression.getLine()+" "+left.getType()+" name "+((Identifier)left).getName());
+            if(right.getType() instanceof BooleanType && left.getType() instanceof BooleanType) {
                 binaryExpression.setType(new BooleanType());
+                System.out.println("p2");
+            }
             else
                 hasError = true;
         }
