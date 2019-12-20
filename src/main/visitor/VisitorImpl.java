@@ -215,36 +215,56 @@ public class VisitorImpl implements Visitor {
 
     @Override
     public void visit(UnaryExpression unaryExpression) {
+        boolean unaryError = false;
         if(unaryExpression == null)
             return;
 
         visitExpr(unaryExpression.getOperand());
 
-        if (unaryExpression.getUnaryOperator().equals(UnaryOperator.not)){
+//        not, minus, preinc, postinc, predec, postdec
+        UnaryOperator operator = unaryExpression.getUnaryOperator();
+        if (operator.equals(UnaryOperator.not)){
             if (! unaryExpression.getOperand().getType().toString().equals(new BooleanType().toString())){
+                unaryError = true;
                 System.out.println("Line:"+unaryExpression.getLine()+":unsupported operand type for "+
                         unaryExpression.getUnaryOperator());
                 unaryExpression.setType(new NoType());
             }
-            unaryExpression.setType(new BooleanType());
+            else
+                unaryExpression.setType(new BooleanType());
         }
 
         else {
             if (! unaryExpression.getOperand().getType().toString().equals(new IntType().toString())){
+                unaryError = true;
                 System.out.println("Line:"+unaryExpression.getLine()+":unsupported operand type for "+
                         unaryExpression.getUnaryOperator());
                 unaryExpression.setType(new NoType());
             }
-            unaryExpression.setType(new IntType());
+            else if (operator.equals(UnaryOperator.postdec) || operator.equals(UnaryOperator.postinc) ||
+                    operator.equals(UnaryOperator.predec) || operator.equals(UnaryOperator.preinc) ||
+                    operator.equals(UnaryOperator.minus)) {
+                System.out.println("Ali");
+                try {
+                    Identifier id = (Identifier) unaryExpression.getOperand();
+                } catch (ClassCastException ignored) {
+                    unaryError = true;
+                    System.out.println("Line:" + unaryExpression.getLine() + ":lvalue required as increment/decrement operand");
+                    unaryExpression.setType(new NoType());
+                }
+            }
+            if(!unaryError)
+                unaryExpression.setType(new IntType());
         }
+        System.out.println("a = " + unaryExpression.getType());
     }
 
     @Override
     public void visit(BinaryExpression binaryExpression) {
-            if(binaryExpression == null)
-                return;
-            System.out.println("a="+((Identifier)binaryExpression.getRight()).getName());
-            System.out.println("b="+((Identifier)binaryExpression.getLeft()).getName());
+        if(binaryExpression == null)
+            return;
+//        System.out.println("a="+((Identifier)binaryExpression.getRight()).getName());
+//        System.out.println("b="+((Identifier)binaryExpression.getLeft()).getName());
 
         visitExpr(binaryExpression.getLeft());
         visitExpr(binaryExpression.getRight());
@@ -266,10 +286,8 @@ public class VisitorImpl implements Visitor {
         }
         // Logical operations
         else if(binaryOperator.equals(BinaryOperator.and)||binaryOperator.equals(BinaryOperator.or)){
-            System.out.println("p1 : " + binaryExpression.getLine()+" "+left.getType()+" name "+((Identifier)left).getName());
             if(right.getType() instanceof BooleanType && left.getType() instanceof BooleanType) {
                 binaryExpression.setType(new BooleanType());
-                System.out.println("p2");
             }
             else
                 hasError = true;

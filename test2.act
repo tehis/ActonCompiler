@@ -14,9 +14,7 @@ actor A (1){
 	    int i[5];
 	    int x[2];
 
-        if(b1 && x‌){
-            print("Ali");
-        }
+        print(++b);
 	    //5=5;
 	    //a=5;
 	   // s="Ali";
