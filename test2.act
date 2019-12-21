@@ -1,43 +1,50 @@
-actor A (1){
+actor A extends X(5){
 	knownactors {
-	    A ac;
+		C c;
 	}
 
 	actorvars {
-	int p;
+		int a;
 	}
-	msghandler initial(int y){
-	    int a;
-        string s;
-	    boolean b;
-	    boolean b1;
-	    int i[5];
-	    int x[2];
 
-        print(++b);
-	    //5=5;
-	    //a=5;
-	   // s="Ali";
-	   // b = b + ‌x;
-	 //   5 = 5;
-	    print(6+6);
-	    print(s);
-	    print(b);
-	    print(i);
-	   // ac.foo();
-	    self.p=2;
-	   a = s;
-
-	}
-	msghandler bar(int x){
-	    int a;
-	    if(a>100)
-	        print(5);
-	    for(a =0; a>5; a = a + 1)
-	        print("mammad");
+	msghandler a() {
+		c.b(a);
 	}
 }
 
-main{
-	A a():();
+actor B (5) {
+	knownactors {
+	}
+
+	actorvars {
+		boolean check;
+	}
+
+	msghandler initial(boolean b)
+	{
+		checker = b;
+		sender = checker;
+		continue;
+	}
+
+	msghandler b(int a, string s) {
+	}
+}
+
+actor C extends B(5) {
+	knownactors {
+	}
+
+	actorvars {
+	}
+
+	msghandler c() {
+		print(sender);
+	}
+}
+
+
+main {
+	A a2(a1):();
+	B b():(!self.isTrue);
 }
