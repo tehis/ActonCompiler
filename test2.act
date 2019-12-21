@@ -1,50 +1,51 @@
-actor A extends X(5){
-	knownactors {
-		C c;
-	}
-
-	actorvars {
-		int a;
-	}
-
-	msghandler a() {
-		c.b(a);
-	}
-}
-
-actor B (5) {
+actor A extends B(5) {
 	knownactors {
 	}
 
 	actorvars {
-		boolean check;
+		int b;
 	}
 
-	msghandler initial(boolean b)
-	{
-		checker = b;
-		sender = checker;
-		continue;
-	}
-
-	msghandler b(int a, string s) {
+	msghandler foo() {
+		int b;
+		b = "string" + c;
+		a = sender + !(b == self.b);
 	}
 }
 
-actor C extends B(5) {
+actor B(3) {
 	knownactors {
 	}
 
 	actorvars {
+		int i;
 	}
 
-	msghandler c() {
-		print(sender);
+	msghandler bar(string s) {
+        self.foo();
 	}
 }
 
+actor C(2) {
+	knownactors {
+		B b;
+		A a;
+	}
+
+	actorvars {
+		int var;
+	}
+
+	msghandler foo() {
+		if(a){
+			b = a;
+			b.bar(2 + true % !sender);
+		}
+	}
+}
 
 main {
-	A a2(a1):();
-	B b():(!self.isTrue);
+	A a():();
+	B b():();
+	C c(a, ab):(1 + !d);
 }

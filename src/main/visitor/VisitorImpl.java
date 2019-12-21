@@ -19,10 +19,7 @@ import main.ast.type.noType.NoType;
 import main.ast.type.primitiveType.BooleanType;
 import main.ast.type.primitiveType.IntType;
 import main.ast.type.primitiveType.StringType;
-import main.symbolTable.SymbolTable;
-import main.symbolTable.SymbolTableActorItem;
-import main.symbolTable.SymbolTableHandlerItem;
-import main.symbolTable.SymbolTableItem;
+import main.symbolTable.*;
 import main.symbolTable.itemException.ItemNotFoundException;
 import main.symbolTable.symbolTableVariableItem.SymbolTableLocalVariableItem;
 import main.symbolTable.symbolTableVariableItem.SymbolTableVariableItem;
@@ -40,6 +37,7 @@ public class VisitorImpl implements Visitor {
     boolean isStatement = false;
     boolean isMsgHandlerCall = false;
     boolean inActorInt = false;
+    ArrayList<ActorInstantiation> mainActors;
 
     protected void visitStatement( Statement stat )
     {
@@ -190,6 +188,8 @@ public class VisitorImpl implements Visitor {
     public void visit(Main mainActors) {
         if(mainActors == null)
             return;
+        this.mainActors = mainActors.getMainActors();
+
         for(ActorInstantiation mainActor : mainActors.getMainActors())
             mainActor.accept(this);
 
@@ -203,32 +203,27 @@ public class VisitorImpl implements Visitor {
         }
     }
 
-//    private boolean checkTypeCast(Identifier right, Identifier left){
-//        while (true) {
-//            if (right.getClass().getName().equals(left.getClass().getName()))
-//                return  true;
-//            try {
-//                SymbolTableActorItem right_item = (SymbolTableActorItem) SymbolTable.root.get(
-//                        SymbolTableActorItem.STARTKEY + ((Identifier) right).getName());
-//                right_item = (SymbolTableActorItem) SymbolTable.root.get(
-//                        SymbolTableActorItem.STARTKEY + (right_item.getParentName()));
-//                right = right_item.getActorDeclaration().getName();
-//            } catch (ItemNotFoundException ex) {
-//                return false;
-//            }
-//        }
-//    }
-
+    private boolean checkActorInMain(Identifier actorName) {
+            boolean exist = false;
+            for (ActorInstantiation mainAct : mainActors){
+                if (actorName.getName().equals(mainAct.getIdentifier().getName()))
+                    exist = true;
+            }
+            if (exist)
+                return true;
+            return false;
+    }
+    
     @Override
     public void visit(ActorInstantiation actorInstantiation) {
         if(actorInstantiation == null)
             return;
 
         visitExpr(actorInstantiation.getIdentifier());
-        isStatement = true;
+        isStatement = false;
         for(Identifier knownActor : actorInstantiation.getKnownActors())
             visitExpr(knownActor);
-        isStatement = false;
+//        isStatement = false;
 
         ArrayList<Identifier>  x1 = actorInstantiation.getKnownActors();
 
@@ -240,14 +235,22 @@ public class VisitorImpl implements Visitor {
             ArrayList<VarDeclaration> x2 = actor.getActorDeclaration().getKnownActors();
             if(x1.size() != x2.size())
             {
-                System.out.println("errr");
+                System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
             }
             else for(int i=0;i<x1.size(); i++)
             {
+                if(!checkActorInMain(x1.get(i))) {
+                    System.out.println("Line:" + actorInstantiation.getLine() + ":variable " +
+                            x1.get(i).getName() + " is not declared");
+                    continue;
+                }
                 if((x1.get(i).getType() instanceof NoType) || (x2.get(i).getType() instanceof NoType))
                     continue;
-                if(!(x1.get(i).getType() instanceof ActorType) || !(x2.get(i).getType() instanceof NoType))
-                    System.out.println("errr");
+                if(!(x1.get(i).getType() instanceof NoType) && !(x2.get(i).getType() instanceof NoType)
+                        && (x1.get(i).getType() instanceof IntType) && (x1.get(i).getType() instanceof StringType) &&
+                        !(x1.get(i).getType() instanceof BooleanType) && !(x1.get(i).getType() instanceof ArrayType)
+                     )
+                    System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
                 else
                 {
                     Identifier right = x1.get(i);
@@ -263,7 +266,7 @@ public class VisitorImpl implements Visitor {
                                     SymbolTableActorItem.STARTKEY + (right_item.getParentName()));
                             right = right_item.getActorDeclaration().getName();
                         } catch (ItemNotFoundException ex) {
-                            System.out.println("err");
+                            System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
                             break;
                         }
                     }
@@ -274,9 +277,14 @@ public class VisitorImpl implements Visitor {
         }
 
         inActorInt = true;
+        isStatement = true;
         for(Expression initArg : actorInstantiation.getInitArgs())
             visitExpr(initArg);
         inActorInt = false;
+        isStatement = false;
+        for(Expression initArg : actorInstantiation.getInitArgs()) {
+            if (initArg.get)
+        }
     }
 
     @Override
@@ -336,6 +344,11 @@ public class VisitorImpl implements Visitor {
         BinaryOperator binaryOperator=binaryExpression.getBinaryOperator();
         Expression right = binaryExpression.getRight();
         Expression left = binaryExpression.getLeft();
+
+        if(!(left.getType() instanceof NoType) || !(right.getType() instanceof NoType)) {
+            binaryExpression.setType(new NoType());
+            return;
+        }
 
         boolean hasError = false;
         // Computational operators
@@ -418,7 +431,13 @@ public class VisitorImpl implements Visitor {
     public void visit(Identifier identifier) {
         if(identifier == null)
             return;
-        if (!inActorInt && !isMsgHandlerCall && isStatement) {
+//        if (!inActorInt && !isMsgHandlerCall && isStatement) {
+        if (!isMsgHandlerCall && isStatement && !(identifier.getName().equals("Self"))) {
+            if (inActorInt) {
+                System.out.println("Line:"+identifier.getLine()+":variable "+identifier.getName()+" is not declared");
+                identifier.setType(new NoType());
+                return;
+            }
             Pair<Type, String> p = getTypeOfIdentifier(identifier);
             if (p.getValue() != null)
             {
@@ -515,6 +534,37 @@ public class VisitorImpl implements Visitor {
             System.out.println("Line:" + continueLoop.getLine() + ":continue statement not within loop");
     }
 
+    private boolean checkExistanceOfMsgHandler(MsgHandlerCall msgHandlerCall, SymbolTable acSt) {
+        try {
+            // If it can not find this msgHandler or can not cast it to msgHandlerItem go to catch
+            SymbolTableHandlerItem msgItem = (SymbolTableHandlerItem) acSt.get(SymbolTableHandlerItem.STARTKEY +
+                    msgHandlerCall.getMsgHandlerName().getName());
+            HandlerDeclaration handlerDec = msgItem.getHandlerDeclaration();
+            ArrayList<VarDeclaration> origHandlerArgs = handlerDec.getArgs();
+            ArrayList<Expression> msgCallArgs = msgHandlerCall.getArgs();
+
+            if (origHandlerArgs.size() != msgCallArgs.size()) {
+                System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
+                isMsgHandlerCall = false;
+                return false;
+            }
+            for (int i = 0; i < origHandlerArgs.size(); i++) {
+                if (msgCallArgs.get(i).getType() instanceof NoType)
+                    continue;
+                if (!(origHandlerArgs.get(i).getType().toString().equals(msgCallArgs.get(i).toString()))){
+                    System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
+                    isMsgHandlerCall = false;
+                    return false;
+                }
+            }
+            return true;
+        }catch (Exception e){
+            System.out.println("Line:"+msgHandlerCall.getLine()+":there is no msghandler name " +
+                    msgHandlerCall.getMsgHandlerName() + "in actor " + acSt.getName());
+            isMsgHandlerCall=false;
+            return false;
+        }
+    }
 
     @Override
     public void visit(MsgHandlerCall msgHandlerCall) {
@@ -522,8 +572,13 @@ public class VisitorImpl implements Visitor {
 
         if(msgHandlerCall == null)
             return;
+        Identifier actorName = null;
+        if (msgHandlerCall.getInstance().toString().equals("Self")) {
+            checkExistanceOfMsgHandler(msgHandlerCall, currentActorSt);
+            return;
+        }
         try {
-            Identifier actorName = (Identifier) msgHandlerCall.getInstance();
+            actorName = (Identifier) msgHandlerCall.getInstance();
             Identifier msgName = msgHandlerCall.getMsgHandlerName();
 
             visitExpr(actorName);
@@ -545,31 +600,33 @@ public class VisitorImpl implements Visitor {
                     acStIt = (SymbolTableActorItem) SymbolTable.root.get(SymbolTableActorItem.STARTKEY +
                             type.getKey().toString());
                     SymbolTable acSt = acStIt.getActorSymbolTable();
-                    try {
-                        // If it can not find this msgHandler or can not cast it to msgHandlerItem go to catch
-                        SymbolTableHandlerItem msgItem = (SymbolTableHandlerItem) acSt.get(SymbolTableHandlerItem.STARTKEY +
-                                msgHandlerCall.getMsgHandlerName().getName());
-                        HandlerDeclaration handlerDec = msgItem.getHandlerDeclaration();
-                        ArrayList<VarDeclaration> origHandlerArgs = handlerDec.getArgs();
-                        ArrayList<Expression> msgCallArgs = msgHandlerCall.getArgs();
-
-                        if (origHandlerArgs.size() != msgCallArgs.size()) {
-                            System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
-                            isMsgHandlerCall = false;
-                            return;
-                        }
-                        for (int i = 0; i < origHandlerArgs.size(); i++){
-                            if (!(origHandlerArgs.get(i).getType().toString().equals(msgCallArgs.get(i).toString()))){
-                                System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
-                                isMsgHandlerCall = false;
-                                return;
-                            }
-                        }
-
-                    }catch (Exception e){
-                        System.out.println("Line:"+msgHandlerCall.getLine()+":there is no msghandler name " +
-                                msgHandlerCall.getMsgHandlerName() + "in actor " + acStIt.getKey());
-                    }
+                    if (!checkExistanceOfMsgHandler(msgHandlerCall, acSt))
+                        return;
+//                    try {
+//                        // If it can not find this msgHandler or can not cast it to msgHandlerItem go to catch
+//                        SymbolTableHandlerItem msgItem = (SymbolTableHandlerItem) acSt.get(SymbolTableHandlerItem.STARTKEY +
+//                                msgHandlerCall.getMsgHandlerName().getName());
+//                        HandlerDeclaration handlerDec = msgItem.getHandlerDeclaration();
+//                        ArrayList<VarDeclaration> origHandlerArgs = handlerDec.getArgs();
+//                        ArrayList<Expression> msgCallArgs = msgHandlerCall.getArgs();
+//
+//                        if (origHandlerArgs.size() != msgCallArgs.size()) {
+//                            System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
+//                            isMsgHandlerCall = false;
+//                            return;
+//                        }
+//                        for (int i = 0; i < origHandlerArgs.size(); i++){
+//                            if (!(origHandlerArgs.get(i).getType().toString().equals(msgCallArgs.get(i).toString()))){
+//                                System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
+//                                isMsgHandlerCall = false;
+//                                return;
+//                            }
+//                        }
+//
+//                    }catch (Exception e){
+//                        System.out.println("Line:"+msgHandlerCall.getLine()+":there is no msghandler name " +
+//                                msgHandlerCall.getMsgHandlerName() + "in actor " + acStIt.getKey());
+//                    }
                 } catch (ItemNotFoundException e) {
                     e.getStackTrace();
                 }
