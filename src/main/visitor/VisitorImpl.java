@@ -26,6 +26,7 @@ import main.symbolTable.symbolTableVariableItem.SymbolTableVariableItem;
 import main.visitor.nameAnalyser.TypeScope;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class VisitorImpl implements Visitor {
 
@@ -37,7 +38,13 @@ public class VisitorImpl implements Visitor {
     boolean isStatement = false;
     boolean isMsgHandlerCall = false;
     boolean inActorInt = false;
+
+    boolean is_known_act = false;
+    Identifier curr_known_act;
+
     ArrayList<ActorInstantiation> mainActors;
+
+    HashMap<String, Type> actorss = new HashMap<>();
 
     protected void visitStatement( Statement stat )
     {
@@ -136,17 +143,25 @@ public class VisitorImpl implements Visitor {
         if (parent != null) {
             String key = SymbolTableActorItem.STARTKEY + parent.getName();
             SymbolTableActorItem a = (SymbolTableActorItem) SymbolTable.root.getSymbolTableItems().get(key);
-            if (a == null)
+            if(a==null)
                 System.out.println("Line:" + parent.getLine() + ":actor " + parent.getName() + " is not declared");
         }
         for(VarDeclaration varDeclaration: actorDeclaration.getKnownActors())
+        {
             varDeclaration.accept(this);
-
-        for(VarDeclaration actorVar : actorDeclaration.getKnownActors()) {
-            String key = SymbolTableActorItem.STARTKEY + actorVar.getType().toString();
+//            System.out.println(varDeclaration.getType().toString());
+            String key = SymbolTableActorItem.STARTKEY + varDeclaration.getType().toString();
             SymbolTableActorItem a = (SymbolTableActorItem) SymbolTable.root.getSymbolTableItems().get(key);
+//            varDeclaration.setType(new NoType());
+//            continue;
             if (a == null)
-                System.out.println("Line:" + actorVar.getLine() + ":actor " + actorVar.getType().toString() + " is not declared");
+            {
+                System.out.println("Line:" + varDeclaration.getLine() + ":actor " + varDeclaration.getType().toString() + " is not declared");
+             //   varDeclaration.setType(new NoType());
+            }
+//            else
+//                varDeclaration.setType(new ActorType(a.getActorDeclaration().getName()));
+//            System.out.println("salam" +varDeclaration.getType().toString());
         }
 
         for(VarDeclaration varDeclaration: actorDeclaration.getActorVars())
@@ -186,10 +201,14 @@ public class VisitorImpl implements Visitor {
 
     @Override
     public void visit(Main mainActors) {
-        if(mainActors == null)
+        if (mainActors == null)
             return;
-        this.mainActors = mainActors.getMainActors();
-
+//        this.mainActors = SymbolTable.root.get();
+        //    SymbolTable.root.ge
+        for (ActorInstantiation mainActor : mainActors.getMainActors())
+        {
+            this.actorss.put(mainActor.getIdentifier().getName(), mainActor.getType());
+        }
         for(ActorInstantiation mainActor : mainActors.getMainActors())
             mainActor.accept(this);
 
@@ -201,29 +220,31 @@ public class VisitorImpl implements Visitor {
             if (a == null)
                 System.out.println("Line:" + mainActor.getLine() + ":actor " + mainActor.getType().toString() + " is not declared");
         }
+
     }
 
     private boolean checkActorInMain(Identifier actorName) {
-            boolean exist = false;
-            for (ActorInstantiation mainAct : mainActors){
-                if (actorName.getName().equals(mainAct.getIdentifier().getName()))
-                    exist = true;
+            if(actorss.get(actorName.getName()) == null)
+            {
+                actorName.setType(new NoType());
+                return false;
             }
-            if (exist)
+            else
+            {
+                actorName.setType(actorss.get(actorName.getName()));
                 return true;
-            return false;
+            }
     }
-    
+
     @Override
     public void visit(ActorInstantiation actorInstantiation) {
         if(actorInstantiation == null)
             return;
 
         visitExpr(actorInstantiation.getIdentifier());
-        isStatement = false;
+
         for(Identifier knownActor : actorInstantiation.getKnownActors())
             visitExpr(knownActor);
-//        isStatement = false;
 
         ArrayList<Identifier>  x1 = actorInstantiation.getKnownActors();
 
@@ -233,6 +254,17 @@ public class VisitorImpl implements Visitor {
             SymbolTableActorItem actor = (SymbolTableActorItem) SymbolTable.root.get(
                     SymbolTableActorItem.STARTKEY + actor_name);
             ArrayList<VarDeclaration> x2 = actor.getActorDeclaration().getKnownActors();
+//            System.out.println(x1.size() + " " + x2.size());
+
+            for(int i=0;i<x1.size(); i++)
+            {
+                if(!checkActorInMain(x1.get(i))) {
+                    System.out.println("Line:" + actorInstantiation.getLine() + ":variable " +
+                            x1.get(i).getName() + " is not declared");
+                    continue;
+                }
+            }
+
             if(x1.size() != x2.size())
             {
                 System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
@@ -240,8 +272,6 @@ public class VisitorImpl implements Visitor {
             else for(int i=0;i<x1.size(); i++)
             {
                 if(!checkActorInMain(x1.get(i))) {
-                    System.out.println("Line:" + actorInstantiation.getLine() + ":variable " +
-                            x1.get(i).getName() + " is not declared");
                     continue;
                 }
                 if((x1.get(i).getType() instanceof NoType) || (x2.get(i).getType() instanceof NoType))
@@ -250,22 +280,45 @@ public class VisitorImpl implements Visitor {
                         && (x1.get(i).getType() instanceof IntType) && (x1.get(i).getType() instanceof StringType) &&
                         !(x1.get(i).getType() instanceof BooleanType) && !(x1.get(i).getType() instanceof ArrayType)
                      )
+                {
                     System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
+//                    System.out.println("PPP");
+                }
                 else
                 {
+//                    System.out.println("$$$");
                     Identifier right = x1.get(i);
-                    Identifier left = x2.get(i).getIdentifier();
+                    VarDeclaration left = x2.get(i);
 
+//                    System.out.println(right.getType());
+                    if(!(right.getType() instanceof NoType))
                     while (true) {
-                        if (right.getClass().getName().equals(left.getClass().getName()))
+//                        System.out.println("296" + right.getType());
+                        if(right.getType() == null)
+                        {
+                            System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
+                            break;
+                        }
+//                        if (right.getName().equals(left.getType().toString()) ||
+                        if(right.getType().toString().equals(
+                                left.getType().toString()))
                             break;
                         try {
                             SymbolTableActorItem right_item = (SymbolTableActorItem) SymbolTable.root.get(
-                                    SymbolTableActorItem.STARTKEY + right.getName());
+                                    SymbolTableActorItem.STARTKEY + right.getType());
+                            if(right_item.getParentName().equals(""))
+                            {
+//                                System.out.println("WTTT");
+                                System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
+                                break;
+                            }
+//                            System.out.println("315" + right_item.getParentName());
+                            String ss = right_item.getParentName();
                             right_item = (SymbolTableActorItem) SymbolTable.root.get(
-                                    SymbolTableActorItem.STARTKEY + (right_item.getParentName()));
+                                    SymbolTableActorItem.STARTKEY + ss);
                             right = right_item.getActorDeclaration().getName();
                         } catch (ItemNotFoundException ex) {
+//                            System.out.println("++++");
                             System.out.println("Line:"+actorInstantiation.getLine()+":knownactors does not match with definition");
                             break;
                         }
@@ -282,9 +335,39 @@ public class VisitorImpl implements Visitor {
             visitExpr(initArg);
         inActorInt = false;
         isStatement = false;
-        for(Expression initArg : actorInstantiation.getInitArgs()) {
-            if (initArg.get)
+
+        ArrayList<Expression> instantiation_args =  actorInstantiation.getInitArgs();
+
+        try {
+            SymbolTableActorItem actor = (SymbolTableActorItem) SymbolTable.root.get(
+                    SymbolTableActorItem.STARTKEY + actor_name);
+            ActorDeclaration actor_dec =  actor.getActorDeclaration();
+            if(actor_dec.getInitHandler() == null)
+            {
+                if(instantiation_args.size() != 0)
+                    System.out.println("Line:"+actorInstantiation.getLine()+":arguments do not match with definition");
+                return;
+            }
+            ArrayList<VarDeclaration> actor_args =  actor_dec.getInitHandler().getArgs();
+            if (actor_args.size() != instantiation_args.size())
+            {
+                System.out.println("Line:"+actorInstantiation.getLine()+":arguments do not match with definition");
+                return;
+            }
+            for(int i = 0; i < actor_args.size(); i++) {
+                if (actor_args.get(i).getType().toString().equals(instantiation_args.get(i).getType().toString())
+                    || actor_args.get(i).getType() instanceof NoType || instantiation_args.get(i).getType() instanceof
+                    NoType)
+                {
+                }
+                else {
+                    System.out.println("Line:"+actorInstantiation.getLine()+":arguments do not match with definition");
+                    return;
+                }
+            }
+        } catch (ItemNotFoundException e) {
         }
+
     }
 
     @Override
@@ -295,28 +378,31 @@ public class VisitorImpl implements Visitor {
 
         visitExpr(unaryExpression.getOperand());
 
-        if (unaryExpression.getOperand().getType() instanceof NoType)
-            return;
 //        not, minus, preinc, postinc, predec, postdec
         UnaryOperator operator = unaryExpression.getUnaryOperator();
         if (operator.equals(UnaryOperator.not)){
-            if (! unaryExpression.getOperand().getType().toString().equals(new BooleanType().toString())){
+            if (! unaryExpression.getOperand().getType().toString().equals(new BooleanType().toString())
+            && !(unaryExpression.getOperand().getType() instanceof NoType)){
                 System.out.println("Line:"+unaryExpression.getLine()+":unsupported operand type for "+
                         unaryExpression.getUnaryOperator());
                 unaryExpression.setType(new NoType());
             }
-            else
-                unaryExpression.setType(new BooleanType());
+            else {
+                if (unaryExpression.getOperand().getType() instanceof NoType)
+                    unaryExpression.setType(new NoType());
+                else
+                    unaryExpression.setType(new BooleanType());
+            }
         }
-
         else {
-            if (! unaryExpression.getOperand().getType().toString().equals(new IntType().toString())){
+            if (! unaryExpression.getOperand().getType().toString().equals(new IntType().toString())
+                && !(unaryExpression.getOperand().getType() instanceof NoType)){
                 unaryError = true;
                 System.out.println("Line:"+unaryExpression.getLine()+":unsupported operand type for "+
                         unaryExpression.getUnaryOperator());
                 unaryExpression.setType(new NoType());
             }
-            else if (operator.equals(UnaryOperator.postdec) || operator.equals(UnaryOperator.postinc) ||
+            if (operator.equals(UnaryOperator.postdec) || operator.equals(UnaryOperator.postinc) ||
                     operator.equals(UnaryOperator.predec) || operator.equals(UnaryOperator.preinc) ||
                     operator.equals(UnaryOperator.minus)) {
                 try {
@@ -327,8 +413,12 @@ public class VisitorImpl implements Visitor {
                     unaryExpression.setType(new NoType());
                 }
             }
-            if(!unaryError)
-                unaryExpression.setType(new IntType());
+            if(!unaryError) {
+                if (unaryExpression.getOperand().getType() instanceof NoType)
+                    unaryExpression.setType(new NoType());
+                else
+                    unaryExpression.setType(new IntType());
+            }
         }
     }
 
@@ -345,7 +435,7 @@ public class VisitorImpl implements Visitor {
         Expression right = binaryExpression.getRight();
         Expression left = binaryExpression.getLeft();
 
-        if(!(left.getType() instanceof NoType) || !(right.getType() instanceof NoType)) {
+        if((left.getType() instanceof NoType) && (right.getType() instanceof NoType)) {
             binaryExpression.setType(new NoType());
             return;
         }
@@ -354,30 +444,50 @@ public class VisitorImpl implements Visitor {
         // Computational operators
         if(binaryOperator.equals(BinaryOperator.add)||binaryOperator.equals(BinaryOperator.sub)||
                 binaryOperator.equals(BinaryOperator.mult)||binaryOperator.equals(BinaryOperator.div)||
-                binaryOperator.equals(BinaryOperator.mod)){
-            if(right.getType() instanceof IntType && left.getType() instanceof IntType)
-                binaryExpression.setType(new IntType());
+                binaryOperator.equals(BinaryOperator.mod))
+        {
+            if( (right.getType() instanceof IntType || right.getType() instanceof NoType)
+                && (left.getType() instanceof IntType || left.getType() instanceof NoType))
+            {
+                if(right.getType() instanceof NoType || left.getType() instanceof NoType)
+                    binaryExpression.setType(new NoType());
+                else
+                    binaryExpression.setType(new IntType());
+            }
             else
                 hasError = true;
         }
         // Logical operations
         else if(binaryOperator.equals(BinaryOperator.and)||binaryOperator.equals(BinaryOperator.or)){
-            if(right.getType() instanceof BooleanType && left.getType() instanceof BooleanType) {
-                binaryExpression.setType(new BooleanType());
+            if( (right.getType() instanceof BooleanType || right.getType() instanceof NoType)
+                    && (left.getType() instanceof BooleanType || left.getType() instanceof NoType))
+            {
+                if(right.getType() instanceof NoType || left.getType() instanceof NoType)
+                    binaryExpression.setType(new NoType());
+                else
+                    binaryExpression.setType(new BooleanType());
             }
             else
                 hasError = true;
         }
         // Comparative operations
         else if (binaryOperator.equals(BinaryOperator.gt) || binaryOperator.equals(BinaryOperator.lt)){
-            if (left.getType() instanceof IntType && right.getType() instanceof IntType)
-                binaryExpression.setType(new BooleanType());
+            if( (right.getType() instanceof IntType || right.getType() instanceof NoType)
+                    && (left.getType() instanceof IntType || left.getType() instanceof NoType))
+            {
+                if(right.getType() instanceof NoType || left.getType() instanceof NoType)
+                    binaryExpression.setType(new NoType());
+                else
+                    binaryExpression.setType(new BooleanType());
+            }
             else
                 hasError = true;
         }
         else if (binaryOperator.equals(BinaryOperator.eq) || binaryOperator.equals(BinaryOperator.neq)) {
 
-            if (left.getType().toString().equals(right.getType().toString())){
+            if (left.getType() instanceof NoType || right.getType() instanceof NoType)
+            {}
+            else if (left.getType().toString().equals(right.getType().toString())){
                 if (left.getType() instanceof ArrayType){
                     ArrayType leftArray = (ArrayType)left.getType();
                     ArrayType rightArray = (ArrayType)right.getType();
@@ -489,7 +599,8 @@ public class VisitorImpl implements Visitor {
     public void visit(Conditional conditional) {
         Expression condExpression = conditional.getExpression();
         visitExpr(condExpression);
-        if (condExpression.getType() == null || !(condExpression.getType() instanceof BooleanType))
+        if (!(condExpression.getType() instanceof NoType) &&
+                !(condExpression.getType() instanceof BooleanType))
             System.out.println("Line:"+conditional.getLine()+":condition type must be Boolean");
         visitStatement(conditional.getThenBody());
         visitStatement(conditional.getElseBody());
@@ -514,7 +625,7 @@ public class VisitorImpl implements Visitor {
 
         visitExpr(loop.getCondition());
         Expression cond = loop.getCondition();
-        if(cond.getType() == null || !(cond.getType() instanceof BooleanType))
+        if(!(cond.getType() instanceof NoType) && !(cond.getType() instanceof BooleanType))
             System.out.println("Line:"+loop.getLine()+":condition type must be Boolean");
         visitStatement(loop.getUpdate());
         visitStatement(loop.getBody());
@@ -602,31 +713,6 @@ public class VisitorImpl implements Visitor {
                     SymbolTable acSt = acStIt.getActorSymbolTable();
                     if (!checkExistanceOfMsgHandler(msgHandlerCall, acSt))
                         return;
-//                    try {
-//                        // If it can not find this msgHandler or can not cast it to msgHandlerItem go to catch
-//                        SymbolTableHandlerItem msgItem = (SymbolTableHandlerItem) acSt.get(SymbolTableHandlerItem.STARTKEY +
-//                                msgHandlerCall.getMsgHandlerName().getName());
-//                        HandlerDeclaration handlerDec = msgItem.getHandlerDeclaration();
-//                        ArrayList<VarDeclaration> origHandlerArgs = handlerDec.getArgs();
-//                        ArrayList<Expression> msgCallArgs = msgHandlerCall.getArgs();
-//
-//                        if (origHandlerArgs.size() != msgCallArgs.size()) {
-//                            System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
-//                            isMsgHandlerCall = false;
-//                            return;
-//                        }
-//                        for (int i = 0; i < origHandlerArgs.size(); i++){
-//                            if (!(origHandlerArgs.get(i).getType().toString().equals(msgCallArgs.get(i).toString()))){
-//                                System.out.println("Line:" + msgHandlerCall.getLine() + ":arguments do not match with definition");
-//                                isMsgHandlerCall = false;
-//                                return;
-//                            }
-//                        }
-//
-//                    }catch (Exception e){
-//                        System.out.println("Line:"+msgHandlerCall.getLine()+":there is no msghandler name " +
-//                                msgHandlerCall.getMsgHandlerName() + "in actor " + acStIt.getKey());
-//                    }
                 } catch (ItemNotFoundException e) {
                     e.getStackTrace();
                 }
@@ -685,10 +771,16 @@ public class VisitorImpl implements Visitor {
                 try {
                     SymbolTableActorItem right_item = (SymbolTableActorItem) SymbolTable.root.get(
                             SymbolTableActorItem.STARTKEY + ((Identifier) right).getName());
+                    if(right_item.getParentName().equals(""))
+                    {
+                        System.out.println("Line:" + assign.getLine() + ":unsupported operand type for " + assign.toString());
+                        return;
+                    }
                     right_item = (SymbolTableActorItem) SymbolTable.root.get(
                             SymbolTableActorItem.STARTKEY + (right_item.getParentName()));
                     right = right_item.getActorDeclaration().getName();
                 } catch (ItemNotFoundException ex) {
+                    System.out.println("Line:" + assign.getLine() + ":unsupported operand type for " + assign.toString());
                     return;
                 }
             }
